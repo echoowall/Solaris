@@ -39,7 +39,9 @@ class Profile:
     kind: str  # KIND_SUBSCRIPTION or KIND_FILE (including pasted node links)
     url: str = ""  # the subscription link
     path: str = ""  # the original local file; empty for pasted node links
-    auto_update_hours: int = 0  # subscriptions only; 0 turns automatic updates off
+    # Subscriptions only: n > 0 updates every n hours; 0 is off; -n is off, keeping the n hours
+    # it updates at once turned on again. Versions before -n read any value <= 0 as off.
+    auto_update_hours: int = 0
     updated_at: float = 0.0  # unix seconds of the last download or import
     usage: Usage | None = None
     # The nodes it brings to the node pool (SourceInspection.node_count); None until read.
@@ -55,6 +57,12 @@ class Profile:
     @property
     def is_subscription(self) -> bool:
         return self.kind == KIND_SUBSCRIPTION
+
+    @property
+    def auto_update_interval(self) -> int:
+        """The hours it updates at, or would once automatic updates are on again; 0 when it
+        keeps none, and the default applies."""
+        return abs(self.auto_update_hours)
 
     @property
     def is_node_links(self) -> bool:

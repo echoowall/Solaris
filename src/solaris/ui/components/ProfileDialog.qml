@@ -26,7 +26,7 @@ AppDialog {
         nameField.text = details.name ?? ""
         urlField.text = details.url ?? ""
         urlField.cursorPosition = 0
-        autoUpdate.setInterval(details.autoUpdateHours ?? 0)
+        autoUpdate.setInterval(details.autoUpdate ?? false, details.autoUpdateHours ?? 0)
         nameField.selectAll()
     }
 

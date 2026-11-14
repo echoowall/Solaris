@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from PySide6.QtCore import QObject
+from PySide6.QtCore import QObject, Qt
 from pytestqt.qtbot import QtBot
 
 from solaris.host.base import ProxyGroup
@@ -87,7 +87,17 @@ def test_profile_editor_validates_and_restores_the_selected_interval(
     field.setProperty("checked", False)
     with qtbot.waitSignal(models.profiles.editSaved):
         loaded.click(qtbot, save)
-    assert models.library.snapshot().get("sample-a").auto_update_hours == 0
+    # Off, it keeps the 6 hours: the editor and the menu show them, and turning it on again
+    # from the menu brings them back.
+    assert models.library.snapshot().get("sample-a").auto_update_hours == -6
+    assert rows(models.profiles, "model")[0].autoUpdateLabel == "每 6 小时自动更新"
+    models.profiles.editProfile("sample-a")
+    qtbot.waitUntil(lambda: loaded.focused_text() == "示例订阅 A")
+    assert (field.property("checked"), field.property("intervalText")) == (False, "6")
+    loaded.key(qtbot, Qt.Key.Key_Escape)
+    with qtbot.waitSignal(models.profiles.changed):
+        models.profiles.setAutoUpdate("sample-a", True)
+    qtbot.waitUntil(lambda: models.library.snapshot().get("sample-a").auto_update_hours == 6)
     assert loaded.warnings == []
 
 

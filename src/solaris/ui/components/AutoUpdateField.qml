@@ -2,7 +2,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 
-// A form value: disabling updates keeps the draft interval until the form closes.
+// A form value: turning updates off keeps the interval typed, in the form and once saved.
 ColumnLayout {
     id: field
 
@@ -10,13 +10,15 @@ ColumnLayout {
     property alias checked: toggle.checked
     property alias intervalText: interval.text
     readonly property bool acceptableInput: !checked || (interval.acceptableInput && Number.isInteger(Number(interval.text)))
-    readonly property int hours: checked && acceptableInput ? Number(interval.text) : 0
+    // The interval typed, 0 when it is not a whole number of hours; kept while updates are
+    // off, so that turning them on again brings it back (Profile.auto_update_hours).
+    readonly property int hours: interval.acceptableInput && Number.isInteger(Number(interval.text)) ? Number(interval.text) : 0
     signal accepted
 
     spacing: Theme.space2
 
-    function setInterval(hours: int) {
-        checked = hours > 0
+    function setInterval(enabled: bool, hours: int) {
+        checked = enabled
         intervalText = String(hours > 0 ? hours : defaultHours)
     }
 

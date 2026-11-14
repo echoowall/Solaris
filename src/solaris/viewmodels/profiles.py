@@ -347,7 +347,7 @@ class ProfilesViewModel(QObject):
             canUpdate=profile.can_update,
             autoUpdate=profile.auto_update_hours > 0,
             autoUpdateLabel=self.tr(
-                "每 %n 小时自动更新", "", profile.auto_update_hours or DEFAULT_AUTO_UPDATE_HOURS
+                "每 %n 小时自动更新", "", profile.auto_update_interval or DEFAULT_AUTO_UPDATE_HOURS
             ),
             hasOverride=profile.has_override,
             note=self._note(profile),
@@ -429,7 +429,7 @@ class ProfilesViewModel(QObject):
             "url": profile.url,
             "subscription": profile.is_subscription,
             "autoUpdate": profile.auto_update_hours > 0,
-            "autoUpdateHours": profile.auto_update_hours,
+            "autoUpdateHours": profile.auto_update_interval,  # also kept while off
         }
 
     @Property(bool, notify=changed)

@@ -131,7 +131,42 @@ def test_custom_update_interval_is_persisted_and_controls_when_updates_are_due(
     scene.now += 100 * 24 * 3600
     run(scene.library.profiles.update_due)
     assert scene.library.snapshot().get(profile.id).updated_at == last
-    assert scene.store.load().get(profile.id).auto_update_hours == 0
+    # Off, it keeps the 24 hours it had, for when it is turned on again.
+    assert scene.store.load().get(profile.id).auto_update_hours == -24
+
+
+def test_turning_automatic_updates_off_and_on_keeps_the_interval(tmp_path: Path) -> None:
+    scene = Scene(tmp_path, seeded=False)
+    imported = run(
+        lambda: scene.library.profiles.import_url("https://sub.example/a", interval_hours=6)
+    )
+    (profile,) = imported.profiles
+    run(lambda: scene.library.profiles.set_auto_update(profile.id, False))
+    assert scene.store.load().get(profile.id).auto_update_hours == -6
+    scene.now += 100 * 24 * 3600
+    run(scene.library.profiles.update_due)  # off: never due
+    assert scene.library.snapshot().get(profile.id).updated_at == NOW
+
+    run(lambda: scene.library.profiles.set_auto_update(profile.id, True))
+    assert scene.store.load().get(profile.id).auto_update_hours == 6
+    # Turned off in the editor at another interval, it keeps that one.
+    run(
+        lambda: scene.library.profiles.edit(
+            profile.id, profile.name, profile.url, False, interval_hours=8
+        )
+    )
+    run(lambda: scene.library.profiles.set_auto_update(profile.id, True))
+    assert scene.store.load().get(profile.id).auto_update_hours == 8
+
+
+def test_an_interval_turned_off_before_it_was_kept_comes_back_at_the_default(
+    tmp_path: Path,
+) -> None:
+    """Profiles turned off before the interval was kept while off hold 0."""
+    scene = Scene(tmp_path)
+    assert scene.library.snapshot().get("sample-b").auto_update_hours == 0
+    run(lambda: scene.library.profiles.set_auto_update("sample-b", True))
+    assert scene.store.load().get("sample-b").auto_update_hours == 12
 
 
 @pytest.mark.parametrize("hours", [0, -1, 1.5, True, 2_147_483_648])
@@ -189,7 +224,7 @@ def test_edit_preserves_profile_content_identity_and_references(tmp_path: Path) 
     assert (edited.name, edited.url, edited.auto_update_hours) == (
         "New name",
         "https://new.example/sub",
-        0,
+        -12,  # off, keeping the 12 hours it had
     )
     assert changed.active == original.id
     assert edited.in_pool == original.in_pool
@@ -198,7 +233,7 @@ def test_edit_preserves_profile_content_identity_and_references(tmp_path: Path) 
     assert edited.usage is None
     assert edited.updated_at == 0
     stored = scene.store.load().get(original.id)
-    assert (stored.name, stored.url, stored.auto_update_hours) == (edited.name, edited.url, 0)
+    assert (stored.name, stored.url, stored.auto_update_hours) == (edited.name, edited.url, -12)
 
 
 @pytest.mark.parametrize(("name", "url"), [(" ", "https://new.example"), ("Name", "file:///bad")])
@@ -346,7 +381,7 @@ def test_import_names_the_profile(tmp_path: Path) -> None:
     )
     assert profiles.active == "sample-a"  # importing does not switch
     assert profiles.profiles[-1].name == "我的订阅"
-    assert profiles.profiles[-1].auto_update_hours == 0
+    assert profiles.profiles[-1].auto_update_hours == -12  # off, keeping the default interval
     profiles = run(lambda: scene.library.profiles.import_url("https://b.example.com/s"))
     assert profiles.profiles[-1].name == "b.example.com"
 

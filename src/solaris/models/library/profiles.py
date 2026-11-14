@@ -56,9 +56,12 @@ RETRY_AFTER_S = 30 * 60
 
 
 def _update_interval(enabled: bool, hours: int) -> int:
+    """Profile.auto_update_hours for automatic updates on or off at ``hours``. Turned off, it
+    keeps a valid ``hours`` as -hours, so that turning them on again brings it back."""
+    valid = type(hours) is int and 1 <= hours <= MAX_AUTO_UPDATE_HOURS
     if not enabled:
-        return 0
-    if type(hours) is not int or not 1 <= hours <= MAX_AUTO_UPDATE_HOURS:
+        return -hours if valid else 0
+    if not valid:
         raise ProfileError("invalid_update_interval", "expected positive whole hours")
     return hours
 
@@ -195,12 +198,10 @@ class Profiles:
             profile = core.list.get(profile_id)
             url = check_url(url) if profile.is_subscription else profile.url
             source_changed = url != profile.url
-            hours = _update_interval(
-                auto_update and profile.is_subscription,
-                interval_hours
-                if interval_hours is not None
-                else profile.auto_update_hours or DEFAULT_AUTO_UPDATE_HOURS,
-            )
+            # Turned off with no interval of its own, it keeps the one it had.
+            if interval_hours is None or (not auto_update and not interval_hours):
+                interval_hours = profile.auto_update_interval or DEFAULT_AUTO_UPDATE_HOURS
+            hours = _update_interval(auto_update and profile.is_subscription, interval_hours)
             edited = replace(
                 profile,
                 name=name.strip(),
@@ -436,11 +437,12 @@ class Profiles:
         core = self._core
         async with core.lock:
             profile = core.list.get(profile_id)
+            # On again at the interval it kept while off.
             hours = _update_interval(
                 enabled and profile.is_subscription,
-                profile.auto_update_hours or DEFAULT_AUTO_UPDATE_HOURS,
+                profile.auto_update_interval or DEFAULT_AUTO_UPDATE_HOURS,
             )
-            profile = replace(profile, auto_update_hours=hours)
+            profile = replace(profile, auto_update_hours=hours if profile.is_subscription else 0)
             await core.save(core.list.put(profile))
             return core.list
 

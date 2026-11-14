@@ -32,7 +32,7 @@ ScrollView {
         importOpen = false
         urlField.clear()
         nameField.clear()
-        autoUpdate.setInterval(page.profiles.defaultAutoUpdateHours)
+        autoUpdate.setInterval(true, page.profiles.defaultAutoUpdateHours)
         page.profiles.clearImportError()
         if (refocus)
             linkButton.forceActiveFocus(Focus.reasonAfter(focused))
